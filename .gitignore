@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+env/
+venv/
+bin/
+lib/
+include/
+
+# Alex AI Specific
+.env
+alex_bg.log
+alex_debug.log
+session_cache.json
+memory_db/
+voice_cache/
+speech_*.mp3
+activation.mp3
+
+# macOS
+.DS_Store
