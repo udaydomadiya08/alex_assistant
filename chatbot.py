@@ -155,9 +155,22 @@ Rules:
                 # Print the text Alex is currently speaking
                 print(f"\n🗣️ [ALEX]: {text}")
                 
-                # Use native macOS afplay for high-quality, glitch-free audio
-                process = await asyncio.create_subprocess_exec("afplay", tmp_file)
-                await process.wait()
+                # Cross-platform audio playback
+                if sys.platform == "darwin":
+                    process = await asyncio.create_subprocess_exec("afplay", tmp_file)
+                    await process.wait()
+                elif sys.platform == "win32":
+                    # For Windows, 'start' can work but might open a player window. 
+                    # For a clean terminal experience, recommend VLC or ffplay in README.
+                    os.system(f"start /min {tmp_file}")
+                else:
+                    # Linux fallback: try common players
+                    for player in ["mpg123", "mplayer", "vlc", "play"]:
+                        try:
+                            process = await asyncio.create_subprocess_exec(player, tmp_file, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                            await process.wait()
+                            break
+                        except: continue
             finally:
                 # Cleanup temporary file immediately after use
                 if os.path.exists(tmp_file) and tmp_file != "activation.mp3":

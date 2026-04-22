@@ -37,14 +37,28 @@ OPENROUTER_API_KEY=your_key_here
 ```
 
 ## 🚀 How to Run
-- **The Clickable Way**: Double-click `chatbot.app` in your Applications folder.
+- **The Clickable Way (Mac Only)**: Double-click `chatbot.app` in your Applications folder.
 - **The Terminal Way**:
   ```bash
-  /Applications/AlexAI/.venv/bin/python3 /Applications/AlexAI/chatbot.py
+  python3 chatbot.py
   ```
 
-## 🛑 How to Stop
-Use the included `Stop_Alex.command` or `Ctrl+C` in the terminal. The microphone hardware will be released immediately.
+## 🐧 Windows & Linux Setup (Python Only)
+Alex can run on any system with Python 3.9+, but you need a few extra steps for the microphone and audio:
 
+### 1. Install PortAudio (Required for Mic)
+- **Windows**: `pip install pipwin` then `pipwin install pyaudio`.
+- **Linux (Ubuntu/Debian)**: `sudo apt-get install python3-pyaudio`.
+
+### 2. Install a Command-Line Player (Required for Speech)
+Since Windows and Linux don't have `afplay`, install one of these so Alex can speak:
+- **Linux**: `sudo apt-get install mpg123`
+- **Windows**: Alex will try to use the default system player, but installing `vlc` or `ffmpeg` is recommended for the best experience.
+
+### 3. Running
+Once your `.env` is set up, just run:
+```bash
+python chatbot.py
+```
 ---
 *Created with focus on speed, privacy, and long-term intelligence.*
