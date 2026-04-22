@@ -112,6 +112,9 @@ Rules:
             try: self.p.terminate()
             except: pass
             self.p = None
+        
+        # 🟢 [SYNC]: Small delay to let macOS audio server register hardware release
+        time.sleep(0.3)
         print("🟢 [CLEANUP] Microphone released and PortAudio terminated.")
 
     def handle_exit_signal(self, sig, frame):
