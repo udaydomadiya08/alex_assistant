@@ -75,74 +75,81 @@ async def generate_ai_response_stream(prompt, user_keys=None, raw_query=None, fo
     
     max_retries = 3
     
-    for attempt in range(max_retries):
-        # === PATH 1: HIGH-SPEED GROQ ===
+    # === PATH 1: HIGH-SPEED GROQ ===
+    if api_key:
+        for attempt in range(max_retries):
+            try:
+                url = "https://api.groq.com/openai/v1/chat/completions"
+                headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+                payload = {
+                    "model": "llama-3.3-70b-versatile",
+                    "messages": [{"role": "user", "content": prompt}],
+                    "stream": True
+                }
+                
+                print(f"📡 [GROQ-STREAM] Processing (Attempt {attempt+1})...")
+                req_start = time.time()
+                
+                async with httpx.AsyncClient(timeout=httpx.Timeout(15.0, read=20.0)) as client:
+                    async with client.stream("POST", url, headers=headers, json=payload) as response:
+                        if response.status_code == 200:
+                            first_token = True
+                            async for line in response.aiter_lines():
+                                if line.startswith("data: "):
+                                    data_str = line[6:].strip()
+                                    if data_str == "[DONE]": break
+                                    try:
+                                        chunk = json.loads(data_str)
+                                        content = chunk["choices"][0]["delta"].get("content", "")
+                                        if content:
+                                            if first_token:
+                                                print(f"🚀 [GROQ] First token in {time.time() - req_start:.2f}s")
+                                                first_token = False
+                                            yield content
+                                    except json.JSONDecodeError:
+                                        continue
+                            return # Success
+                        else:
+                            print(f"⚠️ Groq Status {response.status_code}")
+                            if response.status_code == 401: break # Wrong key, don't retry
+                            
+            except (httpx.NetworkError, httpx.TimeoutException) as e:
+                print(f"⚠️ Groq Network error: {e}. Waiting for internet...")
+                await wait_for_internet_helper()
+            except Exception as e:
+                print(f"⚠️ Groq Path failed: {e}")
+                await asyncio.sleep(1)
+    else:
+        print("💡 [INFO] No Groq key found. Skipping to fallback...")
+
+    # === PATH 2: FINAL SAFETY FALLBACK (OpenRouter) ===
+    if or_key:
+        print("🆘 [SAFETY-FALLBACK] Using OpenRouter...")
         try:
-            url = "https://api.groq.com/openai/v1/chat/completions"
-            headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+            url = "https://openrouter.ai/api/v1/chat/completions"
+            headers = {"Authorization": f"Bearer {or_key}", "Content-Type": "application/json"}
             payload = {
-                "model": "llama-3.3-70b-versatile",
+                "model": "google/gemini-2.0-flash-001",
                 "messages": [{"role": "user", "content": prompt}],
                 "stream": True
             }
             
-            print(f"📡 [GROQ-STREAM] Processing (Attempt {attempt+1})...")
-            req_start = time.time()
-            
-            async with httpx.AsyncClient(timeout=httpx.Timeout(15.0, read=20.0)) as client:
-                async with client.stream("POST", url, headers=headers, json=payload) as response:
-                    if response.status_code == 200:
-                        first_token = True
-                        async for line in response.aiter_lines():
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                async with client.stream("POST", url, headers=headers, json=payload) as res:
+                    if res.status_code == 200:
+                        async for line in res.aiter_lines():
                             if line.startswith("data: "):
-                                data_str = line[6:].strip()
-                                if data_str == "[DONE]": break
                                 try:
-                                    chunk = json.loads(data_str)
+                                    chunk = json.loads(line[6:])
                                     content = chunk["choices"][0]["delta"].get("content", "")
-                                    if content:
-                                        if first_token:
-                                            print(f"🚀 [GROQ] First token in {time.time() - req_start:.2f}s")
-                                            first_token = False
-                                        yield content
-                                except json.JSONDecodeError:
-                                    continue
-                        return # Success
+                                    if content: yield content
+                                except: pass
                     else:
-                        print(f"⚠️ Groq Status {response.status_code}")
-                        
-        except (httpx.NetworkError, httpx.TimeoutException) as e:
-            print(f"⚠️ Groq Network error: {e}. Waiting for internet...")
-            await wait_for_internet_helper()
+                        yield f"Alex is having trouble connecting (Status {res.status_code})."
         except Exception as e:
-            print(f"⚠️ Groq Path failed: {e}")
-            await asyncio.sleep(1)
-
-    # === PATH 2: FINAL SAFETY FALLBACK (OpenRouter) ===
-    print("🆘 [SAFETY-FALLBACK] Groq unavailable. Using OpenRouter...")
-    try:
-        url = "https://openrouter.ai/api/v1/chat/completions"
-        headers = {"Authorization": f"Bearer {or_key}", "Content-Type": "application/json"}
-        payload = {
-            "model": "google/gemini-2.0-flash-001",
-            "messages": [{"role": "user", "content": prompt}],
-            "stream": True
-        }
-        
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            async with client.stream("POST", url, headers=headers, json=payload) as res:
-                if res.status_code == 200:
-                    async for line in res.aiter_lines():
-                        if line.startswith("data: "):
-                            try:
-                                chunk = json.loads(line[6:])
-                                content = chunk["choices"][0]["delta"].get("content", "")
-                                if content: yield content
-                            except: pass
-                else:
-                    yield f"Alex is having trouble connecting (Status {res.status_code})."
-    except Exception as e:
-        yield f"Critical Error: Alex is offline. {e}"
+            yield f"Critical Error: Alex is offline. {e}"
+    else:
+        yield "❌ Error: No API keys found (Groq or OpenRouter). Please check your .env file."
 
 # === Assets (Simplified) === #
 def generate_image_asset(prompt, user_keys=None):
