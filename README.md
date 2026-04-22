@@ -30,11 +30,14 @@ pip install -r requirements.txt
 ```
 
 ### 3. Configuration
-Create a `.env` file in the root directory:
+Create a `.env` file in the root directory. **Alex only needs ONE of these to work**, but having both ensures maximum resilience:
 ```env
-GROQ_API_KEY=your_key_here
-OPENROUTER_API_KEY=your_key_here
+GROQ_API_KEY=your_key_here          # Primary (Fastest)
+OPENROUTER_API_KEY=your_key_here     # Fallback (Resilient)
 ```
+
+## 🧠 Intelligent Resilience
+Alex features **Instant Path Detection**. If you only provide one key, she will skip the missing provider instantly with zero delay. If both are provided, she uses Groq for sub-second responses and switches to OpenRouter automatically if the primary service is unavailable.
 
 ## 🚀 How to Run
 - **The Clickable Way (Mac Only)**: Double-click `chatbot.app` in your Applications folder.
